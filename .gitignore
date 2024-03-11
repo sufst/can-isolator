@@ -1,2 +1,8 @@
 generated.*
 bin/
+*.d
+*.o
+*.hex
+*.bin
+*.elf
+*.map
