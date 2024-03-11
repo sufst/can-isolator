@@ -4,13 +4,10 @@
             "name": "Mac",
             "includePath": [
                 "${default}",
-                "${workspaceFolder}/lib/libopencm3/include"
+                "${workspaceFolder}/libopencm3/include"
             ],
             "defines": [
                 "STM32F1"
-            ],
-            "macFrameworkPath": [
-                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
             ],
             "compilerPath": "/opt/homebrew/bin/arm-none-eabi-gcc",
             "cStandard": "c17",

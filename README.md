@@ -12,4 +12,3 @@ The following details about the hardware are pertinent:
 - CAN1 is on PB8 (RX) and PB9 (TX); this is the LV side
 - CAN2 is on PB12 (RX) and PB13 (TX); this is the HV side
 - the microcontroller is connected to an external 25 MHz clock
-- 
