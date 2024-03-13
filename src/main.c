@@ -60,6 +60,12 @@ typedef struct {
     uint8_t data[CAN_MAX_MESSAGE_SIZE_BYTES];
 } can_frame_t;
 
+static can_frame_t can1_rx_frame;
+static volatile bool can1_rx_flag;
+
+static can_frame_t can2_rx_frame;
+static volatile bool can2_rx_flag;
+
 /**
  * @brief Overridden write syscall.
  */
@@ -174,14 +180,6 @@ static void hv_can_setup(void) { // CAN2
     nvic_enable_irq(NVIC_CAN2_RX0_IRQ);
 }
 
-void usb_lp_can_rx0_isr(void) {
-
-}
-
-void can2_rx0_isr(void) {
-
-}
-
 /**
  * @brief Firmware entrypoint.
  */
@@ -202,10 +200,39 @@ int main(void) {
     usart_putln("I: system initialisation done");
 
     for (;;) {
-        usart_putln("E: exceeded wfi line");
-        __asm__ volatile("nop");
+        WFI();
     }
 
     usart_putln("F: exceeded main loop");
     return 0;
+}
+
+/*
+In both interrupt service routines, we just set a flag. The main loop is still responsible for
+actually handling the data.
+
+This keeps the time spent in ISRs at a minimum.
+*/
+
+/**
+ * @brief CAN1 FIFO 0 interrupt service routine.
+ * 
+ * On non-F103 STM32F1s, the USB and CAN share a SRAM memory block, cannot be used at once, and so
+ * share an interrupt line.
+ * 
+ * The name of this ISR is a slight misnomer for connectivity line devices like the F103 as
+ * libopencm3 assumes we are not using a connectivity line chip. The interrupt vector address is
+ * still correct, however.
+ * 
+ * The canonical name for this interrupt vector is `CAN1_RX0` on connectivity line chips.
+ */
+void usb_lp_can_rx0_isr(void) {
+    can1_rx_flag = true;
+}
+
+/**
+ * @brief CAN2 FIFO 0 interrupt service routine.
+ */
+void can2_rx0_isr(void) {
+    can2_rx_flag = true;
 }
