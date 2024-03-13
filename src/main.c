@@ -30,13 +30,34 @@
 #define CAN_MAX_MESSAGE_SIZE_BYTES  8
 #define CAN_MAX_QUEUE_LENGTH        64
 
+/**
+ * @brief A CAN message.
+ */
 typedef struct {
+    /**
+     * @brief The identifier of the message.
+     */
     uint32_t identifier;
+
+    /**
+     * @brief Whether the message is an extended CAN message (probably not).
+     */
     bool extended;
+
+    /**
+     * @brief The length of the message in ????.
+     */
     uint8_t length;
+
+    /**
+     * @brief The message data.
+     */
     uint8_t data[CAN_MAX_MESSAGE_SIZE_BYTES];
 } can_frame_t;
 
+/**
+ * @brief Overridden write syscall.
+ */
 ssize_t _write(int file, const char *ptr, ssize_t len) {
     // we can't write to anything other than stdout or stderr
     if (file != STDOUT_FILENO && file != STDERR_FILENO) {
@@ -55,6 +76,9 @@ ssize_t _write(int file, const char *ptr, ssize_t len) {
     return i;
 }
 
+/**
+ * @brief Setup the USART peripheral.
+ */
 static void usart_setup(void) {
     rcc_periph_clock_enable(RCC_USART1);
     gpio_set_mode(UART_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN, UART_CK | UART_TX | UART_RX);
@@ -71,6 +95,11 @@ static void usart_setup(void) {
     setbuf(stdout, NULL);
 }
 
+/**
+ * @brief Put a character to the USART.
+ * 
+ * @param string the character to put
+ */
 static void usart_puts(char *string) {
     while (*string) {
         usart_send_blocking(USART1, *string);
@@ -78,25 +107,66 @@ static void usart_puts(char *string) {
     }
 }
 
+/**
+ * @brief Put an entire line to the USART and terminate it with a CRLF.
+ * 
+ * @param string the line to put, no need to add a CRLF
+ */
 static void usart_putln(char *string) {
     usart_puts(string);
     usart_puts("\r\n");
 }
 
+/**
+ * @brief Initialise a CAN peripheral.
+ * 
+ * @param can_port the CAN peripheral to init
+ */
+static void can_setup(uint32_t can_port) {
+    can_reset(can_port);
+
+    /*
+    can_init is essentially a fancy way of setting the bxCAN periph registers, the most important of
+    these being CAN_BTR (the bit timing register)
+
+    seealso: http://www.bittiming.can-wiki.info/
+    */
+    can_init(
+        can_port,
+        false,
+        true,
+        true,
+        false,
+        false,
+        false,
+        CAN_BTR_SJW_1TQ,
+        CAN_BTR_TS1_15TQ,
+        CAN_BTR_TS2_2TQ,
+        4,
+        false,
+        false
+    );
+}
+
+/**
+ * @brief Initialise the LV CAN peripheral.
+ */
 static void lv_can_setup(void) { // CAN1
     rcc_periph_clock_enable(RCC_CAN1);
-    can_reset(CAN1);
-
-    can_init(CAN1, false, true, true, false, false, false, CAN_BTR_SJW_1TQ, CAN_BTR_TS1_11TQ, CAN_BTR_TS2_4TQ, 6, false, false);
+    can_setup(CAN1);
 }
 
+/**
+ * @brief Initialise the HV CAN peripheral.
+ */
 static void hv_can_setup(void) { // CAN2
     rcc_periph_clock_enable(RCC_CAN2);
-    can_reset(CAN2);
-
-    can_init(CAN2, false, true, true, false, false, false, CAN_BTR_SJW_1TQ, CAN_BTR_TS1_11TQ, CAN_BTR_TS2_4TQ, 6, false, false);
+    can_setup(CAN2);   
 }
 
+/**
+ * @brief Firmware entrypoint.
+ */
 int main(void) {
     rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE25_72MHZ]);
     rcc_periph_clock_enable(RCC_GPIOB);
