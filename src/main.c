@@ -7,6 +7,8 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/can.h>
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/scb.h>
 
 #define UART_PORT       GPIOA
 #define UART_CK         GPIO8
@@ -29,6 +31,9 @@
 #define CAN_FRAME_SIZE              sizeof(can_frame_t)
 #define CAN_MAX_MESSAGE_SIZE_BYTES  8
 #define CAN_MAX_QUEUE_LENGTH        64
+
+// wait for interrupt
+#define WFI()   __asm__ volatile("wfi");
 
 /**
  * @brief A CAN message.
@@ -152,8 +157,11 @@ static void can_setup(uint32_t can_port) {
  * @brief Initialise the LV CAN peripheral.
  */
 static void lv_can_setup(void) { // CAN1
+    gpio_primary_remap(false, AFIO_MAPR_CAN1_REMAP_PORTB);
     rcc_periph_clock_enable(RCC_CAN1);
     can_setup(CAN1);
+    can_enable_irq(CAN1, CAN_IER_FMPIE0);
+    nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
 }
 
 /**
@@ -161,7 +169,17 @@ static void lv_can_setup(void) { // CAN1
  */
 static void hv_can_setup(void) { // CAN2
     rcc_periph_clock_enable(RCC_CAN2);
-    can_setup(CAN2);   
+    can_setup(CAN2);
+    can_enable_irq(CAN2, CAN_IER_FMPIE0);
+    nvic_enable_irq(NVIC_CAN2_RX0_IRQ);
+}
+
+void usb_lp_can_rx0_isr(void) {
+
+}
+
+void can2_rx0_isr(void) {
+
 }
 
 /**
@@ -169,13 +187,25 @@ static void hv_can_setup(void) { // CAN2
  */
 int main(void) {
     rcc_clock_setup_pll(&rcc_hse_configs[RCC_CLOCK_HSE25_72MHZ]);
+    rcc_periph_clock_enable(RCC_GPIOA);
     rcc_periph_clock_enable(RCC_GPIOB);
-    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_primary_remap(false, AFIO_MAPR_CAN1_REMAP_PORTB);
+    usart_setup();
+
+    usart_putln("Southampton University Formula Student Team");
+    usart_putln("CAN isolator firmware");
+    usart_putln("I=info, W=warning, E=error, F=fatal");
+    usart_putln("I: starting...\r\n"); // double line break
+
+    // enters a sleep state when exiting an ISR
+    SCB_SCR |= SCB_SCR_SLEEPONEXIT;
+
+    usart_putln("I: system initialisation done");
 
     for (;;) {
-        gpio_toggle(GPIOB, GPIO8);
+        usart_putln("E: exceeded wfi line");
+        __asm__ volatile("nop");
     }
 
+    usart_putln("F: exceeded main loop");
     return 0;
 }
